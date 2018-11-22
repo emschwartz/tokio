@@ -27,8 +27,11 @@
 
 extern crate futures;
 extern crate tokio_executor;
+#[cfg(target_arch = "wasm32")]
+extern crate js_sys;
 
 mod scheduler;
+mod time;
 
 use self::scheduler::Scheduler;
 
@@ -43,8 +46,8 @@ use std::cell::Cell;
 use std::error::Error;
 use std::rc::Rc;
 use std::sync::{atomic, mpsc, Arc};
-use std::time::{Duration, Instant};
 use std::thread;
+use time::{Duration, Instant};
 
 /// Executes tasks on the current thread
 pub struct CurrentThread<P: Park = ParkThread> {

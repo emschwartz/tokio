@@ -1,0 +1,329 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `tokio-buf/src/buf_stream/mod.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>mod.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script src="../../../storage.js"></script></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../../theme.js"></script><nav class="sub"><form class="search-form js-only"><div class="search-container"><input class="search-input" name="search" autocomplete="off" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><a id="settings-menu" href="../../../settings.html"><img src="../../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">  1</span>
+<span id="2">  2</span>
+<span id="3">  3</span>
+<span id="4">  4</span>
+<span id="5">  5</span>
+<span id="6">  6</span>
+<span id="7">  7</span>
+<span id="8">  8</span>
+<span id="9">  9</span>
+<span id="10"> 10</span>
+<span id="11"> 11</span>
+<span id="12"> 12</span>
+<span id="13"> 13</span>
+<span id="14"> 14</span>
+<span id="15"> 15</span>
+<span id="16"> 16</span>
+<span id="17"> 17</span>
+<span id="18"> 18</span>
+<span id="19"> 19</span>
+<span id="20"> 20</span>
+<span id="21"> 21</span>
+<span id="22"> 22</span>
+<span id="23"> 23</span>
+<span id="24"> 24</span>
+<span id="25"> 25</span>
+<span id="26"> 26</span>
+<span id="27"> 27</span>
+<span id="28"> 28</span>
+<span id="29"> 29</span>
+<span id="30"> 30</span>
+<span id="31"> 31</span>
+<span id="32"> 32</span>
+<span id="33"> 33</span>
+<span id="34"> 34</span>
+<span id="35"> 35</span>
+<span id="36"> 36</span>
+<span id="37"> 37</span>
+<span id="38"> 38</span>
+<span id="39"> 39</span>
+<span id="40"> 40</span>
+<span id="41"> 41</span>
+<span id="42"> 42</span>
+<span id="43"> 43</span>
+<span id="44"> 44</span>
+<span id="45"> 45</span>
+<span id="46"> 46</span>
+<span id="47"> 47</span>
+<span id="48"> 48</span>
+<span id="49"> 49</span>
+<span id="50"> 50</span>
+<span id="51"> 51</span>
+<span id="52"> 52</span>
+<span id="53"> 53</span>
+<span id="54"> 54</span>
+<span id="55"> 55</span>
+<span id="56"> 56</span>
+<span id="57"> 57</span>
+<span id="58"> 58</span>
+<span id="59"> 59</span>
+<span id="60"> 60</span>
+<span id="61"> 61</span>
+<span id="62"> 62</span>
+<span id="63"> 63</span>
+<span id="64"> 64</span>
+<span id="65"> 65</span>
+<span id="66"> 66</span>
+<span id="67"> 67</span>
+<span id="68"> 68</span>
+<span id="69"> 69</span>
+<span id="70"> 70</span>
+<span id="71"> 71</span>
+<span id="72"> 72</span>
+<span id="73"> 73</span>
+<span id="74"> 74</span>
+<span id="75"> 75</span>
+<span id="76"> 76</span>
+<span id="77"> 77</span>
+<span id="78"> 78</span>
+<span id="79"> 79</span>
+<span id="80"> 80</span>
+<span id="81"> 81</span>
+<span id="82"> 82</span>
+<span id="83"> 83</span>
+<span id="84"> 84</span>
+<span id="85"> 85</span>
+<span id="86"> 86</span>
+<span id="87"> 87</span>
+<span id="88"> 88</span>
+<span id="89"> 89</span>
+<span id="90"> 90</span>
+<span id="91"> 91</span>
+<span id="92"> 92</span>
+<span id="93"> 93</span>
+<span id="94"> 94</span>
+<span id="95"> 95</span>
+<span id="96"> 96</span>
+<span id="97"> 97</span>
+<span id="98"> 98</span>
+<span id="99"> 99</span>
+<span id="100">100</span>
+<span id="101">101</span>
+<span id="102">102</span>
+<span id="103">103</span>
+<span id="104">104</span>
+<span id="105">105</span>
+<span id="106">106</span>
+<span id="107">107</span>
+<span id="108">108</span>
+<span id="109">109</span>
+<span id="110">110</span>
+<span id="111">111</span>
+<span id="112">112</span>
+<span id="113">113</span>
+<span id="114">114</span>
+<span id="115">115</span>
+<span id="116">116</span>
+<span id="117">117</span>
+<span id="118">118</span>
+<span id="119">119</span>
+<span id="120">120</span>
+<span id="121">121</span>
+<span id="122">122</span>
+<span id="123">123</span>
+<span id="124">124</span>
+<span id="125">125</span>
+<span id="126">126</span>
+<span id="127">127</span>
+<span id="128">128</span>
+<span id="129">129</span>
+<span id="130">130</span>
+<span id="131">131</span>
+<span id="132">132</span>
+<span id="133">133</span>
+<span id="134">134</span>
+<span id="135">135</span>
+<span id="136">136</span>
+<span id="137">137</span>
+<span id="138">138</span>
+<span id="139">139</span>
+<span id="140">140</span>
+<span id="141">141</span>
+<span id="142">142</span>
+<span id="143">143</span>
+<span id="144">144</span>
+<span id="145">145</span>
+<span id="146">146</span>
+<span id="147">147</span>
+<span id="148">148</span>
+<span id="149">149</span>
+<span id="150">150</span>
+<span id="151">151</span>
+<span id="152">152</span>
+<span id="153">153</span>
+<span id="154">154</span>
+<span id="155">155</span>
+<span id="156">156</span>
+<span id="157">157</span>
+<span id="158">158</span>
+<span id="159">159</span>
+<span id="160">160</span>
+<span id="161">161</span>
+<span id="162">162</span>
+<span id="163">163</span>
+</pre><pre class="rust ">
+<span class="doccomment">//! Types and utilities for working with `BufStream`.</span>
+
+<span class="kw">mod</span> <span class="ident">bytes</span>;
+<span class="kw">mod</span> <span class="ident">chain</span>;
+<span class="kw">mod</span> <span class="ident">collect</span>;
+<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">errors</span>;
+<span class="kw">mod</span> <span class="ident">from</span>;
+<span class="kw">mod</span> <span class="ident">limit</span>;
+<span class="kw">mod</span> <span class="ident">size_hint</span>;
+<span class="kw">mod</span> <span class="ident">str</span>;
+
+<span class="kw">pub</span> <span class="kw">use</span> <span class="self">self</span>::<span class="ident">chain</span>::<span class="ident">Chain</span>;
+<span class="kw">pub</span> <span class="kw">use</span> <span class="self">self</span>::<span class="ident">collect</span>::<span class="ident">Collect</span>;
+<span class="kw">pub</span> <span class="kw">use</span> <span class="self">self</span>::<span class="ident">from</span>::<span class="ident">FromBufStream</span>;
+<span class="kw">pub</span> <span class="kw">use</span> <span class="self">self</span>::<span class="ident">limit</span>::<span class="ident">Limit</span>;
+<span class="kw">pub</span> <span class="kw">use</span> <span class="self">self</span>::<span class="ident">size_hint</span>::<span class="ident">SizeHint</span>;
+
+<span class="kw">use</span> <span class="ident">bytes</span>::<span class="ident">Buf</span>;
+<span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">Poll</span>;
+
+<span class="doccomment">/// An asynchronous stream of bytes.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// `BufStream` asynchronously yields values implementing `Buf`, i.e. byte</span>
+<span class="doccomment">/// buffers.</span>
+<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">BufStream</span> {
+    <span class="doccomment">/// Values yielded by the `BufStream`.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// Each item is a sequence of bytes representing a chunk of the total</span>
+    <span class="doccomment">/// `ByteStream`.</span>
+    <span class="kw">type</span> <span class="ident">Item</span>: <span class="ident">Buf</span>;
+
+    <span class="doccomment">/// The error type this `BufStream` might generate.</span>
+    <span class="kw">type</span> <span class="ident">Error</span>;
+
+    <span class="doccomment">/// Attempt to pull out the next buffer of this stream, registering the</span>
+    <span class="doccomment">/// current task for wakeup if the value is not yet available, and returning</span>
+    <span class="doccomment">/// `None` if the stream is exhausted.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// # Return value</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// There are several possible return values, each indicating a distinct</span>
+    <span class="doccomment">/// stream state:</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// - `Ok(Async::NotReady)` means that this stream&#39;s next value is not ready</span>
+    <span class="doccomment">/// yet. Implementations will ensure that the current task will be notified</span>
+    <span class="doccomment">/// when the next value may be ready.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// - `Ok(Async::Ready(Some(buf)))` means that the stream has successfully</span>
+    <span class="doccomment">/// produced a value, `buf`, and may produce further values on subsequent</span>
+    <span class="doccomment">/// `poll_buf` calls.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// - `Ok(Async::Ready(None))` means that the stream has terminated, and</span>
+    <span class="doccomment">/// `poll_buf` should not be invoked again.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// # Panics</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// Once a stream is finished, i.e. `Ready(None)` has been returned, further</span>
+    <span class="doccomment">/// calls to `poll_buf` may result in a panic or other &quot;bad behavior&quot;.</span>
+    <span class="kw">fn</span> <span class="ident">poll_buf</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Item</span><span class="op">&gt;</span>, <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span>;
+
+    <span class="doccomment">/// Returns the bounds on the remaining length of the stream.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// The size hint allows the caller to perform certain optimizations that</span>
+    <span class="doccomment">/// are dependent on the byte stream size. For example, `collect` uses the</span>
+    <span class="doccomment">/// size hint to pre-allocate enough capacity to store the entirety of the</span>
+    <span class="doccomment">/// data received from the byte stream.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// When `SizeHint::upper()` returns `Some` with a value equal to</span>
+    <span class="doccomment">/// `SizeHint::lower()`, this represents the exact number of bytes that will</span>
+    <span class="doccomment">/// be yielded by the `BufStream`.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// # Implementation notes</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// While not enforced, implementations are expected to respect the values</span>
+    <span class="doccomment">/// returned from `SizeHint`. Any deviation is considered an implementation</span>
+    <span class="doccomment">/// bug. Consumers may rely on correctness in order to use the value as part</span>
+    <span class="doccomment">/// of protocol impelmentations. For example, an HTTP library may use the</span>
+    <span class="doccomment">/// size hint to set the `content-length` header.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// However, `size_hint` must not be trusted to omit bounds checks in unsafe</span>
+    <span class="doccomment">/// code. An incorrect implementation of `size_hint()` must not lead to</span>
+    <span class="doccomment">/// memory safety violations.</span>
+    <span class="kw">fn</span> <span class="ident">size_hint</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">SizeHint</span> {
+        <span class="ident">SizeHint</span>::<span class="ident">default</span>()
+    }
+
+    <span class="doccomment">/// Indicates to the `BufStream` how much data the consumer is currently</span>
+    <span class="doccomment">/// able to process.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// The consume hint allows the stream to perform certain optimizations that</span>
+    <span class="doccomment">/// are dependent on the consumer&#39;s readiness. For example, the consume hint</span>
+    <span class="doccomment">/// may be used to request a remote peer to start sending up to `amount`</span>
+    <span class="doccomment">/// data.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// Calling `consume_hint` is not a requirement. If `consume_hint` is never</span>
+    <span class="doccomment">/// called, the stream should assume a default behavior. When `consume_hint`</span>
+    <span class="doccomment">/// is called, the stream should make a best effort to honor by the request.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// `amount` represents the number of bytes that the caller would like to</span>
+    <span class="doccomment">/// receive at the time the function is called. For example, if</span>
+    <span class="doccomment">/// `consume_hint` is called with 20, the consumer requests 20 bytes. The</span>
+    <span class="doccomment">/// stream may yield less than that. If the next call to `poll_buf` returns</span>
+    <span class="doccomment">/// 5 bytes, the consumer still has 15 bytes requested. At this point,</span>
+    <span class="doccomment">/// invoking `consume_hint` again with 20 resets the amount requested back</span>
+    <span class="doccomment">/// to 20 bytes.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// Calling `consume_hint` with 0 as the argument informs the stream that</span>
+    <span class="doccomment">/// the caller does not intend to call `poll_buf`. If `poll_buf` **is**</span>
+    <span class="doccomment">/// called, the stream may, but is not obligated to, return `NotReady` even</span>
+    <span class="doccomment">/// if it could produce data at that point. If it chooses to return</span>
+    <span class="doccomment">/// `NotReady`, when `consume_hint` is called with a non-zero argument, the</span>
+    <span class="doccomment">/// task must be notified in order to respect the `poll_buf` contract.</span>
+    <span class="kw">fn</span> <span class="ident">consume_hint</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">amount</span>: <span class="ident">usize</span>) {
+        <span class="comment">// By default, this function does nothing</span>
+        <span class="ident">drop</span>(<span class="ident">amount</span>);
+    }
+
+    <span class="doccomment">/// Takes two buf streams and creates a new buf stream over both in</span>
+    <span class="doccomment">/// sequence.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// `chain()` returns a new `BufStream` value which will first yield all</span>
+    <span class="doccomment">/// data from `self` then all data from `other`.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// In other words, it links two buf streams together, in a chain.</span>
+    <span class="kw">fn</span> <span class="ident">chain</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>(<span class="self">self</span>, <span class="ident">other</span>: <span class="ident">T</span>) <span class="op">-&gt;</span> <span class="ident">Chain</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">T</span><span class="op">&gt;</span>
+    <span class="kw">where</span>
+        <span class="self">Self</span>: <span class="ident">Sized</span>,
+        <span class="ident">T</span>: <span class="ident">BufStream</span><span class="op">&lt;</span><span class="ident">Error</span> <span class="op">=</span> <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span>,
+    {
+        <span class="ident">Chain</span>::<span class="ident">new</span>(<span class="self">self</span>, <span class="ident">other</span>)
+    }
+
+    <span class="doccomment">/// Consumes all data from `self`, storing it in byte storage of type `T`.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// `collect()` returns a future that buffers all data yielded from `self`</span>
+    <span class="doccomment">/// into storage of type of `T`. The future completes once `self` yield</span>
+    <span class="doccomment">/// `None`, returning the buffered data.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// The collect future will yield an error if `self` yields an error or if</span>
+    <span class="doccomment">/// the collect operation errors. The collect error cases are dependent on</span>
+    <span class="doccomment">/// the target storage type.</span>
+    <span class="kw">fn</span> <span class="ident">collect</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>(<span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">Collect</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">T</span><span class="op">&gt;</span>
+    <span class="kw">where</span>
+        <span class="self">Self</span>: <span class="ident">Sized</span>,
+        <span class="ident">T</span>: <span class="ident">FromBufStream</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Item</span><span class="op">&gt;</span>,
+    {
+        <span class="ident">Collect</span>::<span class="ident">new</span>(<span class="self">self</span>)
+    }
+
+    <span class="doccomment">/// Limit the number of bytes that the stream can yield.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// `limit()` returns a new `BufStream` value which yields all the data from</span>
+    <span class="doccomment">/// `self` while ensuring that at most `amount` bytes are yielded.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// If `self` can yield greater than `amount` bytes, the returned stream</span>
+    <span class="doccomment">/// will yield an error.</span>
+    <span class="kw">fn</span> <span class="ident">limit</span>(<span class="self">self</span>, <span class="ident">amount</span>: <span class="ident">u64</span>) <span class="op">-&gt;</span> <span class="ident">Limit</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span>
+    <span class="kw">where</span>
+        <span class="self">Self</span>: <span class="ident">Sized</span>,
+    {
+        <span class="ident">Limit</span>::<span class="ident">new</span>(<span class="self">self</span>, <span class="ident">amount</span>)
+    }
+}
+</pre>
+</section><section id="search" class="content hidden"></section><section class="footer"></section><aside id="help" class="hidden"><div><h1 class="hidden">Help</h1><div class="shortcuts"><h2>Keyboard Shortcuts</h2><dl><dt><kbd>?</kbd></dt><dd>Show this help dialog</dd><dt><kbd>S</kbd></dt><dd>Focus the search field</dd><dt><kbd>↑</kbd></dt><dd>Move up in search results</dd><dt><kbd>↓</kbd></dt><dd>Move down in search results</dd><dt><kbd>↹</kbd></dt><dd>Switch tab</dd><dt><kbd>&#9166;</kbd></dt><dd>Go to active search result</dd><dt><kbd>+</kbd></dt><dd>Expand all sections</dd><dt><kbd>-</kbd></dt><dd>Collapse all sections</dd></dl></div><div class="infos"><h2>Search Tricks</h2><p>Prefix searches with a type followed by a colon (e.g. <code>fn:</code>) to restrict the search to a given type.</p><p>Accepted types are: <code>fn</code>, <code>mod</code>, <code>struct</code>, <code>enum</code>, <code>trait</code>, <code>type</code>, <code>macro</code>, and <code>const</code>.</p><p>Search functions by type signature (e.g. <code>vec -> usize</code> or <code>* -> vec</code>)</p><p>Search multiple things at once by splitting your query with comma (e.g. <code>str,u8</code> or <code>String,struct:Vec,test</code>)</p></div></div></aside><script>window.rootPath = "../../../";window.currentCrate = "tokio_buf";</script><script src="../../../aliases.js"></script><script src="../../../main.js"></script><script defer src="../../../search-index.js"></script></body></html>

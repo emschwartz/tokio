@@ -1,0 +1,1 @@
+initSidebarItems({"mod":[["buf_stream","Types and utilities for working with `BufStream`."]],"trait":[["BufStream","An asynchronous stream of bytes."]]});
